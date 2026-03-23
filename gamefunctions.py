@@ -1,4 +1,19 @@
 
+"""Utility functions for a text-based adventure game.
+
+This module provides functions for purchasing items, generating
+random monsters, and printing formatted game messages such as
+welcome text and shop menus.
+
+Functions included:
+    purchase_item
+    new_random_monster
+    print_welcome
+    print_shop_menu
+
+This module is designed to be imported into another file (game.py).
+"""
+
 import random
 
 
@@ -67,40 +82,6 @@ def new_random_monster():
             "money": money
         }
 
-#Demonstrate Code!!!
-
-#First Test purchase_item()
-
-print("Purchase Test 1 (normal purchase):")
-num, money = purchase_item(123, 1000, 3)
-print(num)
-print(money)
-
-print("Purchase Test 2 (cannot afford all of it):")
-num, money = purchase_item(123, 201, 3)
-print(num)
-print(money)
-
-print("Purchase Test 3 (default quantityToPurchase):")
-num, money = purchase_item(341, 2112)
-print(num)
-print(money)
-
-#Second Test new_random_monster()
-
-print("Monster Test 1")
-monster1 = new_random_monster()
-print(monster1["description"])
-
-print("Monster Test 2")
-monster2 = new_random_monster()
-print(monster2)
-
-print("Monster 3:")
-monster3 = new_random_monster()
-print(monster3)
-
-
 #03/01/2026
 
 def print_welcome(name, width):
@@ -127,31 +108,62 @@ def print_shop_menu(item1Name, item1Price, item2Name, item2Price):
     top_border = "/" + "-"*22 + "\\"
     bottom_border = "\\" + "-"*22 + "/"
 
-    line1 = f"| {item1Name:<12}${item1Price:>7.2f} |"
-    line2 = f"| {item2Name:<12}${item2Price:>7.2f} |"
+    line1 = f"| {item1Name:<12}{f'${item1Price:.2f}':>8} |"
+    line2 = f"| {item2Name:<12}{f'${item2Price:.2f}':>8} |"
 
     print(top_border)
     print(line1)
     print(line2)
     print(bottom_border)
 
-#Demonstrate Code!!!
+#03/22/2026
 
-#print_welcome tests:
-print_welcome("Ben", 30)
-print_welcome("Danny", 25)
-print_welcome("Millie", 25)
+def test_functions():
+    """
+    Runs tests for all functions in this module.
+    """
 
-#print_shop_menu tests:
-print_shop_menu("Mushrooms", 200, "Herbal Tea", 50)
-print_shop_menu("Stein", 400, "Horse", 420)
-print_shop_menu("Backpack", 160, "Rifle", 189)
+    # purchase_item tests
+    print("Purchase Test 1 (normal purchase):")
+    num, money = purchase_item(123, 1000, 3)
+    print(num)
+    print(money)
 
+    print("Purchase Test 2 (cannot afford all of it):")
+    num, money = purchase_item(123, 201, 3)
+    print(num)
+    print(money)
 
+    print("Purchase Test 3 (default quantity):")
+    num, money = purchase_item(341, 2112)
+    print(num)
+    print(money)
 
+    # new_random_monster tests
+    print("\nMonster Test 1")
+    monster1 = new_random_monster()
+    print(monster1["description"])
 
+    print("Monster Test 2")
+    monster2 = new_random_monster()
+    print(monster2)
 
+    print("Monster Test 3")
+    monster3 = new_random_monster()
+    print(monster3)
 
+    # print_welcome tests
+    print_welcome("Ben", 30)
+    print_welcome("Danny", 25)
+    print_welcome("Millie", 25)
+
+    # print_shop_menu tests
+    print_shop_menu("Mushrooms", 200, "Herbal Tea", 50)
+    print_shop_menu("Stein", 400, "Horse", 420)
+    print_shop_menu("Backpack", 160, "Rifle", 189)
+
+if __name__ == "__main__":
+    test_functions()
 
 
 
