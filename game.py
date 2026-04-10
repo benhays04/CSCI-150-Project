@@ -6,6 +6,7 @@ a simple interactive game with user input.
 
 import gamefunctions
 import random
+import json 
 
 def get_menu_choice():
     """
@@ -21,7 +22,7 @@ def get_menu_choice():
                        "1) Leave town (Fight Monster)\n"
                        "2) Sleep (Restore HP for 5 gold)\n"
                        "3) Shop \n"
-                       "4) Quit\n"
+                       "4) Save and Quit\n"
                        "5) Equip Weapon\n"
                        "Enter choice: ")
         if choice in valid_choices:
@@ -111,7 +112,7 @@ def fight_monster(state):
             fight_active = False 
 
     # After fight
-    if state["player_hp"] <= 0:
+    if player_hp <= 0:
         print("You were defeated...")
     elif monster["health"] <= 0:
         print("You defeated the monster!")
@@ -208,21 +209,53 @@ def equip_weapon(state):
 
     return state
 
+def save_game(state, filename="save.json"):
+    with open(filename, "w") as f:
+        json.dump (state, f, indent=4)
+    print("Game saved!")
+
+def load_game(filename="save.json"):
+    try:
+        with open(filename, "r") as f:
+            state = json.load(f)
+        print("Game loaded!")
+        return state
+    except FileNotFoundError:
+        print("No save file found.")
+        return None
+
 # Main Game Loop
 def main():
     """
     Runs the main game loop, allowing the player to fight, sleep, or quit.
     """
-    name = input("Enter your name: ")
-    gamefunctions.print_welcome(name, 30)
-
-    state = {
-        "player_name": name,
-        "player_hp": 30,
-        "player_gold": 100,
-        "player_inventory": [],
+    print("1) New Game")
+    print("2) Load Game")
+    start_choice = input("Choose: ")
+    if start_choice == "1":
+        name = input("Enter your name: ")
+        gamefunctions.print_welcome(name, 30)
+        state = {
+            "player_name": name,
+            "player_hp": 30,
+            "player_gold": 100,
+            "player_inventory": [],
 }
-             
+    elif start_choice == "2":
+        state = load_game()
+        if state is None:
+            print("Starting new game instead...")
+            name = input("Enter your name: ")
+            gamefunctions.print_welcome(name, 30)
+            state = {
+                "player_name": name,
+                "player_hp": 30,
+                "player_gold": 100,
+                "player_inventory": []
+}
+    else:
+        print("Invalid choice.")
+        return
 
     playing = ["yes"]
     while playing == ["yes"]:
@@ -244,6 +277,10 @@ def main():
             state = shop(state)
 
         elif choice == "4":
+            filename = input("Enter filename (or press Enter for default): ")
+            if filename == "":
+                filename = "save.json"
+            save_game(state, filename)
             print("Goodbye!")
             playing = []
 
