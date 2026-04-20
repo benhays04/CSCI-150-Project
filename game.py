@@ -19,7 +19,7 @@ def get_menu_choice():
 
     while choice not in valid_choices:
         choice = input("\nWhat would you like to do?\n"
-                       "1) Leave town (Fight Monster)\n"
+                       "1) Explore\n"
                        "2) Sleep (Restore HP for 5 gold)\n"
                        "3) Shop \n"
                        "4) Save and Quit\n"
@@ -224,6 +224,102 @@ def load_game(filename="save.json"):
         print("No save file found.")
         return None
 
+
+def place_new_monster(state):
+    map_state = state["map_state"]
+    while True:
+        new_x = random.randint(0,9)
+        new_y = random.randint(0,9)
+        if (new_x, new_y) != (map_state["town_x"], map_state["town_y"]) and (new_x, new_y) != (map_state["player_x"], map_state["player_y"]):
+            map_state["monster_x"] = new_x
+            map_state["monster_y"] = new_y
+            break
+
+
+def move_player(game_state, direction):
+    """
+    diretion is one of: 'up', 'down', 'left', 'right'
+    Updates map_stat.
+    Returns:
+        "moved"
+        "returned_to_town"
+        "monster_encounter"
+    """
+    map_state = game_state["map_state"]
+    x = map_state["player_x"]
+    y = map_state["player_y"]
+
+    old_x = x
+    old_y = y
+
+    if direction == "up" and y > 0:
+        y -= 1
+    elif direction == "down" and y < 9:
+        y += 1
+    elif direction == "left" and x > 0:
+        x -= 1
+    elif direction == "right" and x < 9:
+        x += 1
+
+    map_state["player_x"] = x
+    map_state["player_y"] = y
+
+    if x == old_x and y == old_y:
+        return "moved"
+
+    if (x, y) == (map_state["town_x"], map_state["town_y"]) and (old_x, old_y) != (x, y):
+      return "returned_to_town"
+
+    if (x, y) == (map_state["monster_x"], map_state["monster_y"]):
+        return "monster_encounter"
+
+    return "moved"
+            
+                                                               
+def print_map(state):
+    map_state = state["map_state"]
+
+    for y in range(10):
+        row = ""
+        for x in range (10):
+            if x == map_state["player_x"] and y == map_state["player_y"]:
+                row += "P"
+            elif x == map_state["town_x"] and y == map_state["town_y"]:
+                row += "T"
+            elif x == map_state["monster_x"] and y == map_state["monster_y"]:
+                row += "M"
+            else:
+                row += "."
+        print(row)
+
+def run_map_interface(state):
+    while True:
+        print("\nMap:")
+        print_map(state)
+        print("Move with w/a/s/d")
+
+        move = input("Enter move: ").lower()
+
+        if move == "w":
+            result = move_player(state, "up")
+        elif move == "s":
+            result == move_player(state, "down")
+        elif move == "a":
+            result = move_player(state, "left")
+        elif move == "d":
+            result = move_player(state, "right")
+        else:
+            print("Invalid move.")
+            continue
+        if result == "returned_to_town":
+            print("You returned to town.")
+            return "town"
+        elif result == "monster_encounter":
+            print("A monster appears!")
+            return "monster"
+
+
+
 # Main Game Loop
 def main():
     """
@@ -240,9 +336,20 @@ def main():
             "player_hp": 30,
             "player_gold": 100,
             "player_inventory": [],
+            "map_state": {
+                "player_x": 0,
+                "player_y": 0,
+                "town_x": 0,
+                "town_y": 0,
+                "monster_x": 5,
+                "monster_y": 5
+    }
 }
     elif start_choice == "2":
-        state = load_game()
+        filename = input("Enter filename to load (or press Enter for default): ")
+        if filename == "":
+            filename = "save.json"
+        state = load_game(filename)
         if state is None:
             print("Starting new game instead...")
             name = input("Enter your name: ")
@@ -251,7 +358,15 @@ def main():
                 "player_name": name,
                 "player_hp": 30,
                 "player_gold": 100,
-                "player_inventory": []
+                "player_inventory": [],
+                "map_state": {
+                "player_x": 0,
+                "player_y": 0,
+                "town_x": 0,
+                "town_y": 0,
+                "monster_x": 5,
+                "monster_y": 5
+    }
 }
     else:
         print("Invalid choice.")
@@ -265,10 +380,19 @@ def main():
         choice = get_menu_choice()
 
         if choice == "1":
-            state = fight_monster(state)
-            if state["player_hp"] <= 0:
-                print("Game Over.")
-                playing = []
+            exploring = True
+            while exploring:
+                map_result = run_map_interface(state)
+                if map_result == "town":
+                    exploring = False
+                elif map_result == "monster":
+                    state = fight_monster(state)
+                    if state["player_hp"] <= 0:
+                        print("Game Over.")
+                        playing = []
+                        exploring = False
+                    else:
+                        place_new_monster(state)
 
         elif choice == "2":
             state = sleep(state)
