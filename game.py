@@ -6,7 +6,8 @@ a simple interactive game with user input.
 
 import gamefunctions
 import random
-import json 
+import json
+from WanderingMonster import WanderingMonster
 
 def get_menu_choice():
     """
@@ -209,15 +210,36 @@ def equip_weapon(state):
 
     return state
 
+
 def save_game(state, filename="save.json"):
+    save_state = state.copy()
+
+    save_state["monsters"] = []
+    for monster in state["monsters"]:
+        save_state["monsters"].append(monster.to_dict())
+
+    save_state["current_monster"] = None
+    
     with open(filename, "w") as f:
-        json.dump (state, f, indent=4)
+        json.dump(save_state, f, indent=4)
     print("Game saved!")
+
 
 def load_game(filename="save.json"):
     try:
         with open(filename, "r") as f:
             state = json.load(f)
+
+        loaded_monsters = []
+
+        for monster_data in state.get("monsters", []):
+            monster = WanderingMonster(0, 0, "Goblin", [0, 255, 0], 20)
+            monster.from_dict(monster_data)
+            loaded_monsters.append(monster)
+
+        state["monsters"] = loaded_monsters
+        state["current_monster"] = None
+
         print("Game loaded!")
         return state
     except FileNotFoundError:
@@ -225,15 +247,22 @@ def load_game(filename="save.json"):
         return None
 
 
-def place_new_monster(state):
+def spawn_monster(state):
     map_state = state["map_state"]
-    while True:
-        new_x = random.randint(0,9)
-        new_y = random.randint(0,9)
-        if (new_x, new_y) != (map_state["town_x"], map_state["town_y"]) and (new_x, new_y) != (map_state["player_x"], map_state["player_y"]):
-            map_state["monster_x"] = new_x
-            map_state["monster_y"] = new_y
-            break
+
+    occupied = []
+    for monster in state["monsters"]:
+        occupied.append((monster.x, monster.y))
+
+    forbidden = [
+        (map_state["player_x"], map_state["player_y"]),
+        (map_state["town_x"], map_state["town_y"])
+    ]
+
+    new_monster = WanderingMonster(0, 0, "Goblin", [0, 255, 0], 20)
+    new_monster.random_spawn(occupied, forbidden, 10, 10)
+
+    state["monsters"].append(new_monster)
 
 
 def move_player(game_state, direction):
@@ -270,8 +299,10 @@ def move_player(game_state, direction):
     if (x, y) == (map_state["town_x"], map_state["town_y"]) and (old_x, old_y) != (x, y):
       return "returned_to_town"
 
-    if (x, y) == (map_state["monster_x"], map_state["monster_y"]):
-        return "monster_encounter"
+    for monster in game_state["monsters"]:
+        if (x, y) == (monster.x, monster.y):
+            game_state["current_monster"] = monster
+            return "monster_encounter"
 
     return "moved"
             
@@ -286,11 +317,37 @@ def print_map(state):
                 row += "P"
             elif x == map_state["town_x"] and y == map_state["town_y"]:
                 row += "T"
-            elif x == map_state["monster_x"] and y == map_state["monster_y"]:
-                row += "M"
             else:
-                row += "."
+                monster_here = False
+
+                for monster in state["monsters"]:
+                    if x == monster.x and y == monster.y:
+                        monster_here = True
+
+                if monster_here:
+                    row += "M"
+                else:
+                    row += "."
         print(row)
+
+
+def move_all_monsters(state):
+    map_state = state["map_state"]
+
+    forbidden = [
+        (map_state["player_x"], map_state["player_y"]),
+        (map_state["town_x"], map_state["town_y"])
+    ]
+
+    for monster in state["monsters"]:
+        occupied = []
+
+        for other_monster in state["monsters"]:
+            if other_monster != monster:
+                occupied.append((other_monster.x, other_monster.y))
+
+        monster.move(occupied, forbidden, 10, 10)
+
 
 def run_map_interface(state):
     while True:
@@ -303,7 +360,7 @@ def run_map_interface(state):
         if move == "w":
             result = move_player(state, "up")
         elif move == "s":
-            result == move_player(state, "down")
+            result = move_player(state, "down")
         elif move == "a":
             result = move_player(state, "left")
         elif move == "d":
@@ -317,6 +374,8 @@ def run_map_interface(state):
         elif result == "monster_encounter":
             print("A monster appears!")
             return "monster"
+
+        move_all_monsters(state)
 
 
 
@@ -340,11 +399,16 @@ def main():
                 "player_x": 0,
                 "player_y": 0,
                 "town_x": 0,
-                "town_y": 0,
-                "monster_x": 5,
-                "monster_y": 5
-    }
-}
+                "town_y": 0
+            },
+            "monsters": [],
+            "current_monster": None
+        }
+
+        spawn_monster(state)
+
+
+                
     elif start_choice == "2":
         filename = input("Enter filename to load (or press Enter for default): ")
         if filename == "":
@@ -364,10 +428,13 @@ def main():
                 "player_y": 0,
                 "town_x": 0,
                 "town_y": 0,
-                "monster_x": 5,
-                "monster_y": 5
-    }
-}
+             },
+            "monsters": [],
+            "current_monster": None
+        }
+
+        spawn_monster(state)
+        
     else:
         print("Invalid choice.")
         return
@@ -392,7 +459,16 @@ def main():
                         playing = []
                         exploring = False
                     else:
-                        place_new_monster(state)
+                        defeated_monster = state["current_monster"]
+
+                        if defeated_monster in state["monsters"]:
+                            state["monsters"].remove(defeated_monster)
+
+                        state["current_monster"] = None
+
+                        if len(state["monsters"]) == 0:
+                            spawn_monster(state)
+                            spawn_monster(state)
 
         elif choice == "2":
             state = sleep(state)
