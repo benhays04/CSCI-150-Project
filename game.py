@@ -240,6 +240,9 @@ def load_game(filename="save.json"):
         state["monsters"] = loaded_monsters
         state["current_monster"] = None
 
+        if "chests" not in state:
+            state["chests"] = []
+
         print("Game loaded!")
         return state
     except FileNotFoundError:
@@ -263,6 +266,53 @@ def spawn_monster(state):
     new_monster.random_spawn(occupied, forbidden, 10, 10)
 
     state["monsters"].append(new_monster)
+
+
+def spawn_chest(state):
+    map_state = state["map_state"]
+
+    occupied = []
+
+    for monster in state["monsters"]:
+        occupied.append((monster.x, monster.y))
+
+    forbidden = [
+        (map_state["player_x"], map_state["player_y"]),
+        (map_state["town_x"], map_state["town_y"])
+    ]
+
+    x = random.randint(0, 9)
+    y = random.randint(0, 9)
+
+    while (x, y) in occupied or (x, y) in forbidden:
+        x = random.randint(0,9)
+        y = random.randint(0,9)
+
+    chest = {
+        "x": x,
+        "y": y
+    }
+
+    state["chests"].append(chest)
+
+
+def collect_chest(state):
+    reward = random.randint(1, 3)
+
+    if reward == 1:
+        gold = random.randint(5, 20)
+        state["player_gold"] += gold
+        print(f"You found a treasure chest with {gold} gold!")
+
+    elif reward == 2:
+        state["player_inventory"].append(create_sword())
+        print("You found a treasure chest with a sword!")
+
+    else:
+        state["player_inventory"].append(create_potion())
+        print("You found a treasure chest with a monster potion!")
+
+    return state
 
 
 def move_player(game_state, direction):
@@ -299,6 +349,11 @@ def move_player(game_state, direction):
     if (x, y) == (map_state["town_x"], map_state["town_y"]) and (old_x, old_y) != (x, y):
       return "returned_to_town"
 
+    for chest in game_state["chests"]:
+        if (x, y) == (chest["x"], chest["y"]):
+            game_state["chests"].remove(chest)
+            return "chest_found"
+
     for monster in game_state["monsters"]:
         if (x, y) == (monster.x, monster.y):
             game_state["current_monster"] = monster
@@ -327,7 +382,17 @@ def print_map(state):
                 if monster_here:
                     row += "M"
                 else:
-                    row += "."
+                    chest_here = False
+
+                    for chest in state["chests"]:
+                        if x == chest["x"] and y == chest["y"]:
+                            chest_here = True
+
+                    if chest_here:
+                        row += "C"
+                    else:
+                        row += "."
+                                                        
         print(row)
 
 
@@ -368,12 +433,15 @@ def run_map_interface(state):
         else:
             print("Invalid move.")
             continue
+        
         if result == "returned_to_town":
             print("You returned to town.")
             return "town"
         elif result == "monster_encounter":
             print("A monster appears!")
             return "monster"
+        elif result == "chest_found":
+            state = collect_chest(state)
 
         move_all_monsters(state)
 
@@ -402,10 +470,13 @@ def main():
                 "town_y": 0
             },
             "monsters": [],
+            "chests": [],
             "current_monster": None
         }
 
         spawn_monster(state)
+        spawn_chest(state)
+        spawn_chest(state)
 
 
                 
@@ -430,10 +501,13 @@ def main():
                 "town_y": 0,
              },
             "monsters": [],
+            "chests": [],
             "current_monster": None
         }
 
         spawn_monster(state)
+        spawn_chest(state)
+        spawn_chest(state)
         
     else:
         print("Invalid choice.")
@@ -447,6 +521,10 @@ def main():
         choice = get_menu_choice()
 
         if choice == "1":
+            state["chests"] = []
+            spawn_chest(state)
+            spawn_chest(state)
+            
             exploring = True
             while exploring:
                 map_result = run_map_interface(state)
